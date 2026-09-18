@@ -1,0 +1,54 @@
+name: "Trading Signal Bot — Model v2"
+
+"on":
+  schedule:
+    # London session: 07:05-15:05 UTC, Tue(2)-Thu(4)
+    - cron: "5 7-15 * * 2-4"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            xgboost==2.1.1 \
+            yfinance==0.2.54 \
+            pandas==2.2.3 \
+            numpy==1.26.4 \
+            scikit-learn==1.5.2 \
+            matplotlib==3.9.2 \
+            requests==2.32.3
+
+      - name: Run Trading Signal Bot
+        env:
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MODELS_DIR:       ${{ github.workspace }}
+        run: python alert.py
+
+      - name: Commit signals.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add signals.json
+          git diff --cached --quiet || git commit -m "chore: update signals.json [skip ci]"
+          git push

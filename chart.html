@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-store"/>
+<title>Trading Dashboard v3</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{
+  --bg:#0d1117;--sur:#161b22;--sur2:#1c2128;--bor:#30363d;
+  --txt:#e6edf3;--dim:#7d8590;--up:#26a69a;--dn:#ef5350;
+  --call:#3fb950;--put:#f85149;
+  --blu:#58a6ff;--pur:#bc8cff;--yel:#d29922;--acc:#1f6feb;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;}
+
+header{background:var(--sur);border-bottom:1px solid var(--bor);padding:10px 20px;display:flex;flex-direction:column;gap:5px;}
+.hr1{display:flex;align-items:center;justify-content:space-between;}
+.logo{font-size:16px;font-weight:700;color:var(--blu);}
+.logo s{color:var(--dim);font-size:11px;font-weight:400;margin-left:6px;text-decoration:none;}
+.hr2{display:flex;align-items:center;gap:16px;font-size:12px;color:var(--dim);}
+.hr2 strong{color:var(--txt);}
+.sbadge{padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;}
+.sl{background:rgba(63,185,80,.15);color:#3fb950;border:1px solid #3fb950;}
+.so{background:rgba(125,133,144,.1);color:var(--dim);border:1px solid var(--bor);}
+.dot{width:6px;height:6px;border-radius:50%;background:#f85149;animation:blink 1.2s infinite;display:inline-block;margin-right:4px;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+.btn{padding:5px 12px;border-radius:6px;border:1px solid var(--bor);background:var(--sur2);color:var(--txt);cursor:pointer;font-size:12px;}
+.btn:hover{border-color:var(--acc);}
+
+.ptabs{display:flex;gap:3px;padding:10px 20px 0;background:var(--sur);border-bottom:1px solid var(--bor);}
+.ptab{padding:7px 16px;border:none;border-radius:6px 6px 0 0;background:transparent;color:var(--dim);cursor:pointer;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s;}
+.ptab:hover{color:var(--txt);background:var(--sur2);}
+.ptab.on{color:var(--blu);border-bottom-color:var(--blu);background:var(--sur2);}
+
+#banner{margin:12px 20px;border-radius:8px;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:500;}
+.bon{background:rgba(88,166,255,.08);border:1px solid var(--acc);}
+.bof{background:rgba(125,133,144,.06);border:1px solid var(--bor);}
+#cdclock{font-size:20px;font-weight:700;font-family:monospace;color:var(--blu);}
+
+main{display:grid;grid-template-columns:1fr 285px;gap:14px;padding:0 20px 20px;}
+@media(max-width:920px){main{grid-template-columns:1fr;}}
+.left{display:flex;flex-direction:column;gap:14px;}
+.right{display:flex;flex-direction:column;gap:14px;}
+
+.card{background:var(--sur);border:1px solid var(--bor);border-radius:10px;overflow:hidden;}
+.chd{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--bor);}
+.ct{font-size:13px;font-weight:600;}
+.cs{font-size:11px;color:var(--dim);margin-top:2px;}
+
+.ctabs{display:flex;background:var(--sur);border-bottom:1px solid var(--bor);}
+.ctab{flex:1;padding:9px 0;border:none;background:transparent;color:var(--dim);cursor:pointer;font-size:12px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s;}
+.ctab:hover{color:var(--txt);}
+.ctab.live.on{color:#3fb950;border-bottom-color:#3fb950;background:var(--sur2);}
+.ctab.bt.on{color:var(--yel);border-bottom-color:var(--yel);background:var(--sur2);}
+
+.pane{display:none;}
+.pane.show{display:block;}
+
+.cbar{padding:7px 14px;font-size:11px;display:flex;align-items:center;justify-content:space-between;}
+.cload{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--dim);font-size:13px;}
+.spin{width:24px;height:24px;border:3px solid var(--bor);border-top-color:var(--blu);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#live-wrap,#bt-wrap{position:relative;}
+.warn{margin:0 14px 8px;padding:7px 12px;border-radius:6px;background:rgba(210,153,34,.1);border:1px solid var(--yel);font-size:11px;color:var(--yel);}
+
+/* OHLC TOOLTIP */
+.ohlc-tt{
+  position:absolute;z-index:999;pointer-events:none;
+  background:rgba(22,27,34,.95);border:1px solid var(--bor);
+  border-radius:8px;padding:9px 12px;min-width:145px;
+  font-size:11px;backdrop-filter:blur(4px);
+  box-shadow:0 4px 20px rgba(0,0,0,.4);
+}
+.tt-time{font-size:10px;color:var(--dim);margin-bottom:6px;font-weight:600;}
+.tt-grid{display:grid;grid-template-columns:16px 1fr;gap:2px 8px;line-height:1.6;}
+.tt-lbl{color:var(--dim);}
+.tt-ema{margin-top:6px;border-top:1px solid var(--bor);padding-top:5px;display:flex;flex-direction:column;gap:2px;}
+
+.ema-leg{display:flex;gap:10px;padding:4px 14px 8px;font-size:11px;}
+.leg{display:flex;align-items:center;gap:4px;}
+.ldot{width:8px;height:8px;border-radius:50%;}
+.legend{display:flex;gap:14px;padding:6px 14px 10px;font-size:11px;color:var(--dim);}
+
+.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px;}
+.sc2{background:var(--sur2);border:1px solid var(--bor);border-radius:8px;padding:11px;}
+.sl2{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;}
+.sv{font-size:18px;font-weight:700;margin-top:3px;}
+.g{color:#3fb950}.r{color:#f85149}.b{color:var(--blu)}.y{color:var(--yel)}.p{color:var(--pur)}
+
+.slist{padding:8px 12px;display:flex;flex-direction:column;gap:3px;max-height:300px;overflow-y:auto;}
+.sr{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:6px;font-size:12px;}
+.sr.done{opacity:.6;}
+.sr.cur{background:rgba(88,166,255,.09);border:1px solid rgba(88,166,255,.25);}
+.sr.fut{color:var(--dim);}
+.si{font-size:13px;width:18px;text-align:center;}
+.st{font-family:monospace;font-weight:600;min-width:50px;font-size:12px;}
+.scount{margin-left:auto;font-size:10px;color:var(--dim);}
+.scount.has{color:#3fb950;font-weight:600;}
+
+.siglist{display:flex;flex-direction:column;max-height:300px;overflow-y:auto;}
+.sigrow{display:flex;align-items:center;gap:7px;padding:8px 12px;border-bottom:1px solid var(--bor);font-size:12px;}
+.sigrow:last-child{border-bottom:none;}
+.spair{font-weight:700;min-width:55px;font-size:11px;}
+.badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.5px;}
+.badge.call{background:rgba(63,185,80,.15);color:#3fb950;border:1px solid #3fb950;}
+.badge.put{background:rgba(248,81,73,.15);color:#f85149;border:1px solid #f85149;}
+.empty{padding:18px;text-align:center;color:var(--dim);font-size:12px;}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--bor);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hr1">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="logo">📊 Trading Dashboard <s>v3</s></div>
+      <span style="font-size:11px;padding:2px 9px;border-radius:10px;background:rgba(88,166,255,.15);color:#58a6ff;border:1px solid #58a6ff;font-weight:600;">🤖 Model v2 (2025-2026)</span>
+      <span style="font-size:11px;color:#f85149;font-weight:600;"><span class="dot"></span>LIVE</span>
+    </div>
+    <button class="btn" onclick="refreshAll()">🔄 Refresh</button>
+  </div>
+  <div class="hr2">
+    <span>🇹🇭 <strong id="h-th">--:--</strong> ไทย</span>
+    <span>🌍 <strong id="h-utc">--:--</strong> UTC</span>
+    <span>📊 Session: <span id="h-sess" class="sbadge so">--</span></span>
+    <span style="margin-left:auto;font-size:10px;" id="h-upd"></span>
+  </div>
+</header>
+
+<div class="ptabs" id="ptabs"></div>
+
+<div id="banner" class="bof">
+  <span id="cd-txt">⏰ กำลังคำนวณ…</span>
+  <span id="cdclock"></span>
+</div>
+
+<main>
+  <div class="left">
+    <!-- Chart Card -->
+    <div class="card">
+      <div class="ctabs">
+        <button class="ctab live on" id="ctab-live" onclick="switchTab('live')">📈 LIVE Chart</button>
+        <button class="ctab bt" id="ctab-bt" onclick="switchTab('bt')">📊 Backtest Chart</button>
+      </div>
+
+      <!-- LIVE PANE -->
+      <div class="pane show" id="pane-live">
+        <div class="cbar">
+          <span style="color:#3fb950;font-weight:600;">🕯 แท่งเทียน 1h · 30 วัน (ไทย UTC+7)</span>
+          <span id="live-src" style="font-size:10px;color:var(--dim);"></span>
+        </div>
+        <div id="live-loading" class="cload" style="height:380px;">
+          <div class="spin"></div>
+          <div>กำลังโหลดข้อมูลราคาจาก Yahoo Finance…</div>
+          <div id="load-status" style="font-size:10px;color:var(--dim);">ลอง proxy 1/3…</div>
+        </div>
+        <div id="live-wrap" style="display:none;height:380px;"></div>
+        <div id="live-warn" class="warn" style="display:none;"></div>
+        <div class="ema-leg">
+          <div class="leg"><span style="display:inline-block;width:20px;height:2px;background:#f39c12;border-radius:1px;"></span> EMA 21</div>
+          <div class="leg"><span style="display:inline-block;width:20px;height:2px;background:#2ecc71;border-radius:1px;"></span> EMA 50</div>
+          <div class="leg"><span style="display:inline-block;width:20px;height:2px;background:#e74c3c;border-radius:1px;"></span> EMA 200</div>
+        </div>
+        <div class="legend">
+          <div class="leg"><div class="ldot" style="background:#3fb950;"></div>CALL</div>
+          <div class="leg"><div class="ldot" style="background:#f85149;"></div>PUT</div>
+          <div class="leg"><span style="font-size:10px;color:var(--dim);">🖱 ชี้ที่กราฟเพื่อดู OHLC + เวลา</span></div>
+        </div>
+      </div>
+
+      <!-- BT PANE -->
+      <div class="pane" id="pane-bt">
+        <div class="cbar">
+          <span style="color:var(--yel);font-weight:600;">📊 Backtest 2025–2026</span>
+          <span style="font-size:10px;color:var(--dim);">⚠️ ข้อมูลย้อนหลัง</span>
+        </div>
+        <div id="bt-wrap" style="height:380px;position:relative;"></div>
+        <div class="legend">
+          <div class="leg"><div class="ldot" style="background:#3fb950;"></div>CALL</div>
+          <div class="leg"><div class="ldot" style="background:#f85149;"></div>PUT</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+      <div class="chd">
+        <div><div class="ct">📊 Stats Backtest</div><div class="cs" id="st-sub">—</div></div>
+      </div>
+      <div class="sg" id="st-grid"><div style="grid-column:1/-1;padding:16px;text-align:center;color:var(--dim);">โหลด…</div></div>
+    </div>
+  </div>
+
+  <div class="right">
+    <!-- Schedule -->
+    <div class="card">
+      <div class="chd">
+        <div><div class="ct">📅 ตารางเทรดวันนี้</div><div class="cs">อ.–พฤ. 14:00–22:00 ไทย</div></div>
+      </div>
+      <div class="slist" id="sch"></div>
+    </div>
+
+    <!-- Live Signals -->
+    <div class="card">
+      <div class="chd">
+        <div><div class="ct">⚡ Live Signals</div><div class="cs" id="sig-sub">—</div></div>
+      </div>
+      <div class="siglist" id="siglist"><div class="empty">โหลด…</div></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const PAIRS    = ['USDJPY','USDCHF','GBPUSD','EURUSD','NZDUSD'];
+const THRESHOLD = {USDJPY:0.60,USDCHF:0.65,GBPUSD:0.60,EURUSD:0.65,NZDUSD:0.65};
+const NZDUSD_WARNING = '⚠️ NZDUSD — WR 51% ต่ำกว่า Breakeven (ไม่แนะนำ)';
+
+const TICKER   = {GBPUSD:'GBPUSD=X',USDJPY:'USDJPY=X',NZDUSD:'NZDUSD=X',USDCHF:'USDCHF=X',EURUSD:'EURUSD=X'};
+const SLOTS    = [7,8,9,10,11,12,13,14,15]; // UTC hours = Thai 14-22
+const TDAYS    = [2,3,4]; // Tue Wed Thu
+
+let pair = 'USDJPY', tab = 'live';
+let bt = {}, sigsByPair = {}, sigsAll = [], lastUpd = null;
+let liveChart = null, btChart = null, liveCandleSeries = null;
+
+const pad = n => String(n).padStart(2,'0');
+const sec = iso => Math.floor(new Date(iso).getTime()/1000); // ISO → Unix seconds
+const thaiStr = (d, opts={}) => d.toLocaleString('th-TH', {timeZone:'Asia/Bangkok', ...opts});
+
+// ── CLOCK ─────────────────────────────────────────
+function updateClock(){
+  const n = new Date();
+  document.getElementById('h-th').textContent   = thaiStr(n,{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('h-utc').textContent  = pad(n.getUTCHours())+':'+pad(n.getUTCMinutes());
+  const inSess = TDAYS.includes(n.getUTCDay()) && n.getUTCHours()>=7 && n.getUTCHours()<=15;
+  const b = document.getElementById('h-sess');
+  b.textContent = inSess ? '🟢 LIVE' : '⚫ ปิด';
+  b.className = 'sbadge '+(inSess?'sl':'so');
+}
+
+// ── COUNTDOWN ─────────────────────────────────────
+function getNext(){
+  const n=new Date(), h=n.getUTCHours(), d=n.getUTCDay();
+  for(const s of SLOTS){
+    if(TDAYS.includes(d) && s>h){
+      const t=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate(),s,0,0));
+      return {today:true,slot:s,diff:t-n};
+    }
+  }
+  for(let i=1;i<=7;i++){
+    if(TDAYS.includes((d+i)%7)){
+      const t=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()+i,SLOTS[0],0,0));
+      return {today:false,slot:SLOTS[0],diff:t-n};
+    }
+  }
+}
+function fmtCD(ms){
+  if(ms<=0) return '00:00';
+  const s=Math.floor(ms/1000),m=Math.floor(s/60),h=Math.floor(m/60);
+  return h>0 ? h+'h '+pad(m%60)+'m' : pad(m)+':'+pad(s%60);
+}
+function tick(){
+  const info=getNext(); if(!info) return;
+  const thSlot=(info.slot+7)%24;
+  const txt=document.getElementById('cd-txt');
+  const clk=document.getElementById('cdclock');
+  const ban=document.getElementById('banner');
+  if(info.today){
+    ban.className='bon'; clk.textContent=fmtCD(info.diff);
+    txt.innerHTML='⏰ สัญญาณถัดไป: <strong>'+pad(thSlot)+':00 น.</strong> ไทย (อีก '+Math.ceil(info.diff/60000)+' นาที)';
+  } else {
+    ban.className='bof'; clk.textContent=fmtCD(info.diff);
+    txt.innerHTML='🌙 เสร็จแล้ววันนี้ — เริ่มใหม่ <strong>'+pad(thSlot)+':00 น.</strong>';
+  }
+}
+
+// ── DEDUP & EMA ────────────────────────────────────
+function dedup(arr,fn){const s=new Set();return arr.filter(x=>{const k=fn(x);if(s.has(k))return false;s.add(k);return true;});}
+function calcEMA(candles,period){
+  if(candles.length<period) return [];
+  const k=2/(period+1);
+  let ema=candles.slice(0,period).reduce((s,c)=>s+c.close,0)/period;
+  const out=[{time:candles[period-1].time, value:parseFloat(ema.toFixed(6))}];
+  for(let i=period;i<candles.length;i++){
+    ema=candles[i].close*k+ema*(1-k);
+    out.push({time:candles[i].time, value:parseFloat(ema.toFixed(6))});
+  }
+  return out;
+}
+
+// ── YAHOO FINANCE ─────────────────────────────────
+const PROXIES = [
+  {label:'allorigins/get', fetch: async url => {
+    const r = await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(12000)});
+    if(!r.ok) throw new Error('allorigins '+r.status);
+    const j = await r.json();
+    return JSON.parse(j.contents);
+  }},
+  {label:'corsproxy', fetch: async url => {
+    const r = await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(12000)});
+    if(!r.ok) throw new Error('corsproxy '+r.status);
+    return r.json();
+  }},
+  {label:'allorigins/raw', fetch: async url => {
+    const r = await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(12000)});
+    if(!r.ok) throw new Error('allorigins/raw '+r.status);
+    return r.json();
+  }},
+  {label:'thingproxy', fetch: async url => {
+    const r = await fetch('https://thingproxy.freeboard.io/fetch/'+url,{signal:AbortSignal.timeout(12000)});
+    if(!r.ok) throw new Error('thingproxy '+r.status);
+    return r.json();
+  }},
+];
+
+async function fetchYahoo(pairName){
+  const ticker = TICKER[pairName];
+  const yurl = 'https://query1.finance.yahoo.com/v8/finance/chart/'+ticker+'?interval=1h&range=30d';
+  const yurl2= 'https://query2.finance.yahoo.com/v8/finance/chart/'+ticker+'?interval=1h&range=30d';
+
+  for(let i=0;i<PROXIES.length;i++){
+    const p = PROXIES[i];
+    document.getElementById('load-status').textContent = 'ลอง proxy '+p.label+'…';
+    for(const yu of [yurl, yurl2]){
+      try{
+        const data = await p.fetch(yu);
+        const result = data?.chart?.result?.[0];
+        if(result && result.timestamp && result.timestamp.length > 0){
+          console.log('Yahoo OK via', p.label);
+          return result;
+        }
+      } catch(e){ console.warn(p.label, e.message); }
+    }
+  }
+  return null;
+}
+
+function yahoToCandles(result){
+  // Yahoo timestamps are already Unix SECONDS
+  const ts = result.timestamp;
+  const q  = result.indicators.quote[0];
+  const out = [];
+  for(let i=0;i<ts.length;i++){
+    if(q.open[i]==null||q.close[i]==null||q.high[i]==null||q.low[i]==null) continue;
+    out.push({
+      time:  ts[i],
+      open:  parseFloat(q.open[i].toFixed(6)),
+      high:  parseFloat(q.high[i].toFixed(6)),
+      low:   parseFloat(q.low[i].toFixed(6)),
+      close: parseFloat(q.close[i].toFixed(6)),
+    });
+  }
+  return dedup(out, c=>c.time).sort((a,b)=>a.time-b.time);
+}
+
+// ── OHLC TOOLTIP ──────────────────────────────────
+function makeTip(container, chart, series){
+  const tt = document.createElement('div');
+  tt.className = 'ohlc-tt';
+  tt.style.display = 'none';
+  container.appendChild(tt);
+
+  chart.subscribeCrosshairMove(param => {
+    if(!param.point || !param.time || param.point.x<0 || param.point.y<0){
+      tt.style.display='none'; return;
+    }
+    const d = param.seriesData.get(series);
+    if(!d){ tt.style.display='none'; return; }
+
+    const isCandle = d.open !== undefined;
+    const dt = new Date(param.time * 1000);
+    const thTime = dt.toLocaleString('th-TH',{
+      timeZone:'Asia/Bangkok',
+      day:'2-digit', month:'short', year:'2-digit',
+      hour:'2-digit', minute:'2-digit'
+    });
+    const utcStr = pad(dt.getUTCDate())+'/'+(pad(dt.getUTCMonth()+1))+' '+pad(dt.getUTCHours())+':'+pad(dt.getUTCMinutes())+' UTC';
+
+    if(isCandle){
+      const isUp = d.close >= d.open;
+      const clr  = isUp ? '#26a69a' : '#ef5350';
+      const chg  = (d.close - d.open).toFixed(5);
+      const chgPct = ((d.close-d.open)/d.open*100).toFixed(3);
+      tt.innerHTML =
+        '<div class="tt-time">'+thTime+' ไทย<br><span style="color:#3d4451">'+utcStr+'</span></div>'+
+        '<div class="tt-grid">'+
+          '<span class="tt-lbl">O</span><span style="color:'+clr+'">'+d.open.toFixed(5)+'</span>'+
+          '<span class="tt-lbl">H</span><span style="color:#3fb950">'+d.high.toFixed(5)+'</span>'+
+          '<span class="tt-lbl">L</span><span style="color:#f85149">'+d.low.toFixed(5)+'</span>'+
+          '<span class="tt-lbl">C</span><span style="color:'+clr+';font-weight:700">'+d.close.toFixed(5)+'</span>'+
+        '</div>'+
+        '<div style="margin-top:5px;padding-top:5px;border-top:1px solid #30363d;font-size:10px;color:'+clr+'">'+
+          (isUp?'▲':isDown?'▼':'')+''+chg+' ('+chgPct+'%)'+
+        '</div>';
+    } else {
+      tt.innerHTML =
+        '<div class="tt-time">'+thTime+' ไทย</div>'+
+        '<div style="color:var(--blu);font-weight:700;">'+d.value.toFixed(5)+'</div>';
+    }
+
+    tt.style.display = 'block';
+    let lx = param.point.x + 14;
+    let ty = Math.max(4, param.point.y - 110);
+    if(lx + 160 > container.clientWidth) lx = param.point.x - 170;
+    tt.style.left = lx+'px';
+    tt.style.top  = ty+'px';
+  });
+
+  container.addEventListener('mouseleave', ()=>{ tt.style.display='none'; });
+}
+
+// ── LIVE CHART ────────────────────────────────────
+async function renderLiveChart(pairName){
+  const loading  = document.getElementById('live-loading');
+  const wrap     = document.getElementById('live-wrap');
+  const srcEl    = document.getElementById('live-src');
+  const warnEl   = document.getElementById('live-warn');
+  wrap.style.position = 'relative';
+
+  loading.style.display='flex'; wrap.style.display='none'; warnEl.style.display='none';
+  if(liveChart){liveChart.remove();liveChart=null;liveCandleSeries=null;}
+
+  const result = await fetchYahoo(pairName);
+  let candles=[], useFallback=false;
+
+  if(result){
+    candles = yahoToCandles(result);
+    srcEl.textContent = candles.length > 0 ? '✅ Yahoo Finance — '+candles.length+' แท่ง' : '⚠️ ข้อมูลว่าง';
+  }
+
+  if(candles.length === 0){
+    useFallback = true;
+    srcEl.textContent = '';
+    warnEl.style.display='block';
+    warnEl.innerHTML = '⚠️ โหลดราคาปัจจุบันไม่ได้ (CORS blocked) → แสดงเฉพาะสัญญาณจาก signals.json<br><small style="opacity:.7">Tip: ลองใช้ CORS browser extension</small>';
+  }
+
+  loading.style.display='none';
+  wrap.style.display='block';
+
+  liveChart = LightweightCharts.createChart(wrap, {
+    width: wrap.clientWidth, height: 380,
+    layout:{background:{color:'#161b22'}, textColor:'#7d8590'},
+    grid:{vertLines:{color:'#21262d'}, horzLines:{color:'#21262d'}},
+    crosshair:{
+      mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine:{width:1,color:'rgba(88,166,255,.4)',style:0,labelBackgroundColor:'#1f6feb'},
+      horzLine:{width:1,color:'rgba(88,166,255,.3)',style:0,labelBackgroundColor:'#1f6feb'},
+    },
+    rightPriceScale:{borderColor:'#30363d'},
+    timeScale:{borderColor:'#30363d', timeVisible:true, secondsVisible:false,
+      tickMarkFormatter: t => {
+        const d=new Date(t*1000);
+        return d.toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      }
+    },
+    localization:{
+      timeFormatter: t => {
+        const d=new Date(t*1000);
+        return d.toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+      }
+    }
+  });
+
+  const now = Date.now()/1000;
+
+  if(candles.length > 0){
+    // Candlestick
+    liveCandleSeries = liveChart.addCandlestickSeries({
+      upColor:'#26a69a', downColor:'#ef5350',
+      borderUpColor:'#26a69a', borderDownColor:'#ef5350',
+      wickUpColor:'#26a69a', wickDownColor:'#ef5350',
+    });
+    liveCandleSeries.setData(candles);
+
+    // EMA lines
+    const addLine = (data,color,w=1)=>{
+      const s=liveChart.addLineSeries({color,lineWidth:w,lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:false});
+      if(data.length) s.setData(data);
+    };
+    addLine(calcEMA(candles,21),  '#f39c12');
+    addLine(calcEMA(candles,50),  '#2ecc71');
+    addLine(calcEMA(candles,200), '#e74c3c');
+
+    // Signal markers — only signals that are past (<=now) and within chart range
+    const chartStart = candles[0].time;
+    const sigs = (sigsByPair[pairName]||[])
+      .map(s=>({...s, _t: sec(s.time)}))
+      .filter(s=> s._t <= now && s._t >= chartStart);
+
+    if(sigs.length > 0){
+      const markers = dedup(sigs.map(s=>({
+        time:     s._t,
+        position: s.signal==='CALL' ? 'belowBar' : 'aboveBar',
+        color:    s.signal==='CALL' ? '#3fb950' : '#f85149',
+        shape:    s.signal==='CALL' ? 'arrowUp'  : 'arrowDown',
+        text:     s.score.toFixed(1)+'%',
+        size:     2,
+      })), m=>m.time).sort((a,b)=>a.time-b.time);
+      liveCandleSeries.setMarkers(markers);
+    }
+
+    // Tooltip
+    makeTip(wrap, liveChart, liveCandleSeries);
+
+  } else {
+    // Fallback: line from signals
+    const sigs = (sigsByPair[pairName]||[]).filter(s=>sec(s.time)<=now);
+    if(sigs.length > 0){
+      const pts = dedup(sigs.map(s=>({time:sec(s.time), value:s.price})), p=>p.time).sort((a,b)=>a.time-b.time);
+      const ls = liveChart.addLineSeries({color:'#58a6ff',lineWidth:2,lastValueVisible:true,priceLineVisible:false});
+      ls.setData(pts);
+      liveCandleSeries = ls;
+      makeTip(wrap, liveChart, ls);
+
+      // Signal markers on fallback line
+      const markers = dedup(sigs.map(s=>({
+        time:s._t||sec(s.time),
+        position:s.signal==='CALL'?'belowBar':'aboveBar',
+        color:s.signal==='CALL'?'#3fb950':'#f85149',
+        shape:s.signal==='CALL'?'arrowUp':'arrowDown',
+        text:s.score.toFixed(1)+'%', size:2,
+      })),m=>m.time).sort((a,b)=>a.time-b.time);
+      ls.setMarkers(markers);
+    }
+  }
+
+  liveChart.timeScale().fitContent();
+  new ResizeObserver(()=>liveChart&&liveChart.applyOptions({width:wrap.clientWidth})).observe(wrap);
+}
+
+// ── BACKTEST CHART ────────────────────────────────
+function renderBtChart(pairName){
+  const data = bt[pairName]; if(!data) return;
+  const wrap = document.getElementById('bt-wrap');
+  if(btChart){btChart.remove();btChart=null;}
+
+  btChart = LightweightCharts.createChart(wrap,{
+    width:wrap.clientWidth, height:380,
+    layout:{background:{color:'#161b22'}, textColor:'#7d8590'},
+    grid:{vertLines:{color:'#21262d'}, horzLines:{color:'#21262d'}},
+    crosshair:{
+      mode:LightweightCharts.CrosshairMode.Normal,
+      vertLine:{labelBackgroundColor:'#1f6feb'},
+      horzLine:{labelBackgroundColor:'#1f6feb'},
+    },
+    rightPriceScale:{borderColor:'#30363d'},
+    timeScale:{borderColor:'#30363d',timeVisible:true,
+      localization:{timeFormatter: t=>{
+        const d=new Date(t*1000);
+        return d.toLocaleString('th-TH',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+      }}
+    },
+  });
+
+  const sigs = data.signals||[];
+  // Backtest signal timestamps are already Unix seconds (not ISO)
+  const priceData = dedup(sigs.map(s=>({time:s.time,value:s.price})),p=>p.time).sort((a,b)=>a.time-b.time);
+  const ls = btChart.addLineSeries({color:'#8b949e',lineWidth:1,lastValueVisible:false,priceLineVisible:false});
+  ls.setData(priceData);
+
+  const markers = dedup(sigs.slice(-200).map(s=>({
+    time:s.time,
+    position:s.signal==='CALL'?'belowBar':'aboveBar',
+    color:s.signal==='CALL'?'#3fb950':'#f85149',
+    shape:s.signal==='CALL'?'arrowUp':'arrowDown',
+    text:s.score.toFixed(1)+'%', size:1,
+  })),m=>m.time).sort((a,b)=>a.time-b.time);
+  ls.setMarkers(markers);
+
+  // Backtest tooltip (price only, no OHLC)
+  makeTip(wrap, btChart, ls);
+
+  btChart.timeScale().fitContent();
+  new ResizeObserver(()=>btChart&&btChart.applyOptions({width:wrap.clientWidth})).observe(wrap);
+}
+
+// ── CHART TAB SWITCH ──────────────────────────────
+function switchTab(t){
+  tab=t;
+  document.getElementById('ctab-live').classList.toggle('on',t==='live');
+  document.getElementById('ctab-bt').classList.toggle('on',t==='bt');
+  document.getElementById('pane-live').classList.toggle('show',t==='live');
+  document.getElementById('pane-bt').classList.toggle('show',t==='bt');
+  setTimeout(()=>{
+    if(t==='live'&&liveChart){ const w=document.getElementById('live-wrap'); liveChart.applyOptions({width:w.clientWidth}); }
+    if(t==='bt'&&btChart){ const w=document.getElementById('bt-wrap'); btChart.applyOptions({width:w.clientWidth}); }
+  },50);
+}
+
+// ── PAIR TABS ─────────────────────────────────────
+function buildPairTabs(){
+  const el=document.getElementById('ptabs'); el.innerHTML='';
+  for(const p of PAIRS){
+    const b=document.createElement('button');
+    b.className='ptab'+(p===pair?' on':'');
+    b.textContent=p;
+    b.onclick=()=>{pair=p;document.querySelectorAll('.ptab').forEach(x=>x.classList.remove('on'));b.classList.add('on');renderAll();};
+    el.appendChild(b);
+  }
+}
+
+// ── STATS ─────────────────────────────────────────
+function renderStats(p){
+  const d=bt[p]; if(!d) return;
+  const s=d.stats;
+  const f=(v,n=2)=>Number(v).toLocaleString('en-US',{minimumFractionDigits:n,maximumFractionDigits:n});
+  document.getElementById('st-sub').textContent=p+' · '+s.total_trades+' trades';
+  const thr=THRESHOLD[p]||'—';
+  const pnlSign=s.pnl>=0?'+':'';
+  // NZDUSD warning badge
+  const warnHtml=p==='NZDUSD'?
+    '<div style="grid-column:1/-1;margin-bottom:4px;padding:7px 12px;border-radius:6px;background:rgba(248,81,73,.12);border:1px solid #f85149;color:#f85149;font-size:11px;font-weight:600;">'+NZDUSD_WARNING+'</div>':'';
+  document.getElementById('st-grid').innerHTML=
+    warnHtml+
+    '<div class="sc2"><div class="sl2">Win Rate</div><div class="sv g">'+f(s.win_rate)+'%</div></div>'+
+    '<div class="sc2"><div class="sl2">Total PnL</div><div class="sv '+(s.pnl>=0?'g':'r')+'">'+pnlSign+'$'+f(Math.abs(s.pnl),0)+'</div></div>'+
+    '<div class="sc2"><div class="sl2">Max DD</div><div class="sv r">-'+f(s.max_drawdown)+'%</div></div>'+
+    '<div class="sc2"><div class="sl2">Trades</div><div class="sv b">'+s.total_trades.toLocaleString()+'</div></div>'+
+    '<div class="sc2"><div class="sl2">Threshold</div><div class="sv y">'+thr+'</div></div>'+
+    '<div class="sc2"><div class="sl2">AUC</div><div class="sv p">'+f(s.auc,4)+'</div></div>';
+}
+
+// ── SCHEDULE ──────────────────────────────────────
+function renderSched(){
+  const el=document.getElementById('sch');
+  const now=new Date(), d=now.getUTCDay(), h=now.getUTCHours();
+  if(!TDAYS.includes(d)){el.innerHTML='<div class="empty">🌙 ไม่ใช่วันเทรด (อ.–พฤ.)</div>';return;}
+  const byH={};
+  for(const s of sigsAll){ const sh=new Date(s.time).getUTCHours(); byH[sh]=(byH[sh]||0)+1; }
+  let html='';
+  for(const slot of SLOTS){
+    const th=(slot+7)%24, ts=pad(th)+':00 น.', cnt=byH[slot]||0;
+    if(slot<h) html+='<div class="sr done"><span class="si">✅</span><span class="st">'+ts+'</span><span style="font-size:10px;color:var(--dim)">เช็คแล้ว</span><span class="scount '+(cnt?'has':'')+'">'+( cnt?cnt+' สัญ':'—')+'</span></div>';
+    else if(slot===h) html+='<div class="sr cur"><span class="si">⏰</span><span class="st" style="color:var(--blu)">'+ts+'</span><span style="font-size:11px;color:var(--blu);font-weight:600">ช่วงนี้</span><span class="scount '+(cnt?'has':'')+'">'+( cnt?cnt+' สัญ':'รอ…')+'</span></div>';
+    else html+='<div class="sr fut"><span class="si">⏳</span><span class="st">'+ts+'</span><span style="font-size:10px">รอ</span></div>';
+  }
+  if(lastUpd){
+    const lu=new Date(lastUpd);
+    html+='<div style="padding:5px 8px;font-size:10px;color:var(--dim);border-top:1px solid var(--bor);margin-top:4px;">อัปเดต: '+thaiStr(lu,{hour:'2-digit',minute:'2-digit'})+' น. ไทย</div>';
+  }
+  el.innerHTML=html;
+}
+
+// ── LIVE SIGNALS PANEL ────────────────────────────
+function renderSigPanel(){
+  const el=document.getElementById('siglist');
+  const sub=document.getElementById('sig-sub');
+  const now=new Date();
+  const valid=sigsAll.filter(s=>new Date(s.time)<=now).sort((a,b)=>new Date(b.time)-new Date(a.time));
+  if(!valid.length){el.innerHTML='<div class="empty">🕐 รอสัญญาณแรก…</div>';sub.textContent='ยังไม่มี';return;}
+  sub.textContent=valid.length+' สัญญาณ';
+  el.innerHTML=valid.map(s=>{
+    const d=new Date(s.time);
+    const th=thaiStr(d,{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const utc=pad(d.getUTCHours())+':'+pad(d.getUTCMinutes())+' UTC';
+    const c=s.signal.toLowerCase();
+    return '<div class="sigrow">'+
+      '<span class="spair">'+s.pair+'</span>'+
+      '<span class="badge '+c+'">'+s.signal+'</span>'+
+      '<span style="font-size:10px;color:var(--dim);font-family:monospace;">'+s.price.toFixed(5)+'</span>'+
+      '<span style="margin-left:auto;font-size:11px;color:var(--dim);">'+s.score.toFixed(1)+'%</span>'+
+      '<span style="font-size:10px;color:var(--dim);font-family:monospace;text-align:right;">'+th+'<br><span style="color:#3d4451">'+utc+'</span></span>'+
+      '</div>';
+  }).join('');
+}
+
+// ── DATA LOADERS ──────────────────────────────────
+async function loadBt(){
+  const r=await fetch('./backtest.json?v='+Date.now());
+  if(!r.ok) throw new Error('backtest '+r.status);
+  bt=await r.json();
+}
+async function loadSigs(){
+  const r=await fetch('./signals.json?v='+Date.now());
+  if(!r.ok) throw new Error('signals '+r.status);
+  const d=await r.json();
+  lastUpd=d.last_update||null;
+  sigsAll=d.signals||[];
+  sigsByPair={};
+  for(const s of sigsAll){ if(!sigsByPair[s.pair]) sigsByPair[s.pair]=[]; sigsByPair[s.pair].push(s); }
+  if(lastUpd) document.getElementById('h-upd').textContent='ข้อมูล: '+thaiStr(new Date(lastUpd),{hour:'2-digit',minute:'2-digit'})+' น.';
+}
+
+// ── RENDER ALL ────────────────────────────────────
+function renderAll(){
+  renderStats(pair);
+  renderBtChart(pair);
+  renderLiveChart(pair);
+  renderSched();
+  renderSigPanel();
+}
+
+async function refreshAll(){
+  try{
+    await Promise.all([loadBt(), loadSigs()]);
+    buildPairTabs();
+    renderAll();
+  } catch(e){
+    console.error(e);
+    document.getElementById('st-grid').innerHTML='<div style="grid-column:1/-1;padding:16px;color:#f85149;font-size:12px">❌ '+e.message+'</div>';
+  }
+}
+
+// ── BOOT ──────────────────────────────────────────
+(async()=>{
+  updateClock(); setInterval(updateClock,1000);
+  tick(); setInterval(tick,1000);
+  await refreshAll();
+  setInterval(renderSched,60000);
+})();
+</script>
+</body>
+</html>

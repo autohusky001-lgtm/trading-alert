@@ -1,0 +1,9 @@
+# Trading Signal Bot — Model v2 (2025-2026)
+# GitHub Actions: ubuntu-latest, Python 3.11
+xgboost==2.1.1
+yfinance==0.2.54
+pandas==2.2.3
+numpy==1.26.4
+scikit-learn==1.5.2
+matplotlib==3.9.2
+requests==2.32.3
